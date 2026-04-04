@@ -17,6 +17,19 @@
             --danger: #e53935;
             --success: #43a047;
         }
+/* === АДАПТИВНАЯ ТЕМА (TELEGRAM) === */
+[data-theme="dark"] {
+  --bg: #1c1c1e;
+  --text: #ffffff;
+  --hint: #8e8e93;
+  --accent: #2678b6;
+  --accent-text: #ffffff;
+  --card: #2c2c2e;
+  --border: #38383a;
+  --danger: #ff453a;
+  --success: #32d74b;
+}
+
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -847,6 +860,27 @@
 </div>
 
 <script>
+
+  // === ТЕМА ИЗ TELEGRAM ===
+  (function() {
+    var tg = window.Telegram && window.Telegram.WebApp;
+    function applyTheme() {
+      var scheme = tg ? tg.colorScheme : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      document.documentElement.setAttribute('data-theme', scheme);
+      if (tg && tg.themeParams) {
+        var p = tg.themeParams, r = document.documentElement.style;
+        if (p.bg_color) r.setProperty('--bg', p.bg_color);
+        if (p.text_color) r.setProperty('--text', p.text_color);
+        if (p.hint_color) r.setProperty('--hint', p.hint_color);
+        if (p.button_color) r.setProperty('--accent', p.button_color);
+        if (p.button_text_color) r.setProperty('--accent-text', p.button_text_color);
+        if (p.secondary_bg_color) r.setProperty('--card', p.secondary_bg_color);
+      }
+    }
+    if (tg) { tg.ready(); applyTheme(); tg.onEvent('themeChanged', applyTheme); }
+    else { applyTheme(); }
+  })();
+
 // --- Telegram WebApp с fallback для браузера ---
 let tg = null;
 let isTelegram = false;
