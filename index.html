@@ -1,0 +1,1717 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Поставка одежды</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root {
+            --bg: #ffffff;
+            --text: #1a1a1a;
+            --hint: #8e8e93;
+            --accent: #2678b6;
+            --accent-text: #ffffff;
+            --card: #f2f2f7;
+            --border: #e0e0e0;
+            --danger: #e53935;
+            --success: #43a047;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            padding: 12px;
+            padding-bottom: 110px;
+            font-size: 15px;
+        }
+
+        /* === HEADER === */
+        .page-header {
+            text-align: center;
+            padding: 8px 0 20px;
+        }
+        .page-header h1 { font-size: 20px; font-weight: 700; }
+        .page-header p { font-size: 13px; color: var(--hint); margin-top: 4px; }
+
+        /* === COMMON === */
+        .section { margin-bottom: 20px; }
+        .section-title {
+            font-size: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--hint);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 12px 14px;
+            font-size: 16px;
+            border: 1.5px solid var(--border);
+            border-radius: 10px;
+            background: var(--card);
+            color: var(--text);
+            outline: none;
+            -webkit-appearance: none;
+        }
+        input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+
+        select {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23999' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 14px center;
+            padding-right: 36px;
+        }
+
+        textarea { min-height: 60px; resize: vertical; font-size: 15px; }
+
+        .row { display: flex; gap: 8px; margin-bottom: 8px; }
+        .row > * { flex: 1; }
+
+        .label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--hint);
+            margin-bottom: 4px;
+            text-transform: uppercase;
+        }
+
+        .divider { height: 1px; background: var(--border); margin: 16px 0; }
+
+        /* === MODEL CARD === */
+        .model-card {
+            background: var(--card);
+            border-radius: 14px;
+            padding: 14px;
+            margin-bottom: 14px;
+            border: 2px solid var(--border);
+        }
+        .model-card.active { border-color: var(--accent); }
+
+        .model-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .model-badge {
+            font-weight: 700;
+            font-size: 13px;
+            background: var(--accent);
+            color: var(--accent-text);
+            padding: 3px 10px;
+            border-radius: 12px;
+        }
+
+        .btn-remove {
+            width: 30px; height: 30px;
+            border-radius: 50%;
+            background: var(--danger);
+            color: #fff;
+            border: none;
+            font-size: 18px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .model-card input, .model-card select {
+            background: var(--bg);
+        }
+
+        /* === PHOTO HINT === */
+        .photo-hint {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            background: #fff3e0;
+            border-radius: 10px;
+            font-size: 13px;
+            color: #e65100;
+            margin-bottom: 10px;
+        }
+
+        /* === COLOR BLOCK === */
+        .color-block {
+            background: var(--bg);
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 10px;
+            border: 1px solid var(--border);
+        }
+
+        .color-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .color-name-wrap {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+        }
+
+        .color-dot {
+            width: 20px; height: 20px;
+            border-radius: 50%;
+            border: 2px solid var(--border);
+            flex-shrink: 0;
+            cursor: pointer;
+        }
+
+        .color-name-input {
+            flex: 1;
+            padding: 8px 10px;
+            font-size: 14px;
+            border-radius: 8px;
+        }
+
+        .btn-remove-sm {
+            width: 24px; height: 24px;
+            border-radius: 50%;
+            background: var(--danger);
+            color: #fff;
+            border: none;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            margin-left: 6px;
+        }
+
+        /* === SIZE GRID === */
+        .qty-mode-toggle {
+            display: flex;
+            background: var(--card);
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 10px;
+            border: 1px solid var(--border);
+        }
+
+        .qty-mode-btn {
+            flex: 1;
+            padding: 8px;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 600;
+            border: none;
+            background: transparent;
+            color: var(--hint);
+            cursor: pointer;
+        }
+
+        .qty-mode-btn.active {
+            background: var(--accent);
+            color: var(--accent-text);
+        }
+
+        .size-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
+            gap: 6px;
+        }
+
+        .size-cell {
+            text-align: center;
+        }
+
+        .size-cell .size-label {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--hint);
+            margin-bottom: 3px;
+        }
+
+        .size-cell input {
+            padding: 8px 4px;
+            text-align: center;
+            font-size: 15px;
+            font-weight: 600;
+            border-radius: 8px;
+        }
+
+        .total-qty-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .total-qty-row input {
+            flex: 1;
+        }
+
+        .total-qty-row select {
+            flex: 0 0 100px;
+            padding: 10px;
+            font-size: 14px;
+        }
+
+        .size-series-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px;
+            margin-top: 8px;
+            background: var(--card);
+            border-radius: 10px;
+            flex-wrap: wrap;
+        }
+
+        .size-series-bar .bar-group {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .size-series-bar .bar-label {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: var(--hint);
+            white-space: nowrap;
+        }
+
+        .size-series-bar select,
+        .size-series-bar input[type="number"] {
+            padding: 6px 8px;
+            font-size: 14px;
+            font-weight: 600;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--bg);
+            width: 56px;
+            text-align: center;
+        }
+
+        .size-series-bar .bar-divider {
+            width: 1px;
+            height: 28px;
+            background: var(--border);
+            margin: 0 4px;
+        }
+
+        .size-cell.size-disabled {
+            opacity: 0.2;
+            pointer-events: none;
+        }
+
+        .size-cell.size-disabled input {
+            background: var(--card) !important;
+        }
+
+        .color-total-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 8px;
+            padding: 6px 4px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--accent);
+        }
+
+        .color-total-num {
+            font-size: 15px;
+            font-weight: 700;
+        }
+
+        /* === ADD BUTTONS === */
+        .btn-add {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            width: 100%;
+            padding: 12px;
+            background: transparent;
+            border: 2px dashed var(--accent);
+            border-radius: 12px;
+            color: var(--accent);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .btn-add-sm {
+            padding: 8px 12px;
+            background: transparent;
+            border: 1.5px dashed var(--accent);
+            border-radius: 8px;
+            color: var(--accent);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        /* === SUMMARY === */
+        .summary-bar {
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            background: var(--bg);
+            border-top: 1px solid var(--border);
+            padding: 8px 16px;
+            padding-bottom: max(8px, env(safe-area-inset-bottom));
+            z-index: 50;
+        }
+
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            color: var(--hint);
+            margin-bottom: 2px;
+        }
+
+        .summary-total {
+            display: flex;
+            justify-content: space-between;
+            font-size: 17px;
+            font-weight: 700;
+        }
+
+        /* === OVERLAY === */
+        .overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.4);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .overlay.active { display: flex; }
+
+        .modal {
+            background: var(--bg);
+            border-radius: 16px;
+            padding: 20px;
+            width: 100%;
+            max-width: 340px;
+        }
+
+        .modal h3 { margin-bottom: 14px; font-size: 17px; }
+        .modal input { margin-bottom: 10px; }
+        .modal .btn-row { display: flex; gap: 8px; }
+        .modal button {
+            flex: 1;
+            padding: 12px;
+            border-radius: 10px;
+            border: none;
+            font-size: 15px;
+            cursor: pointer;
+        }
+        .modal .btn-cancel { background: var(--card); color: var(--text); }
+        .modal .btn-ok { background: var(--accent); color: var(--accent-text); }
+
+        /* === COLOR COMBO-INPUT === */
+        .color-combo {
+            position: relative;
+        }
+
+        .color-combo-input {
+            width: 100%;
+            padding: 10px 36px 10px 12px;
+            font-size: 15px;
+            border-radius: 8px;
+            border: 1.5px solid var(--border);
+            background: var(--bg);
+            color: var(--text);
+            outline: none;
+        }
+
+        .color-combo-input:focus {
+            border-color: var(--accent);
+        }
+
+        .color-combo-clear {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 22px; height: 22px;
+            border-radius: 50%;
+            background: var(--hint);
+            color: #fff;
+            border: none;
+            font-size: 13px;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .color-combo-dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0; right: 0;
+            background: var(--bg);
+            border: 1.5px solid var(--border);
+            border-top: none;
+            border-radius: 0 0 10px 10px;
+            max-height: 180px;
+            overflow-y: auto;
+            z-index: 30;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .color-combo-dropdown.open {
+            display: block;
+        }
+
+        .color-combo-option {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .color-combo-option:active,
+        .color-combo-option.highlighted {
+            background: var(--card);
+        }
+
+        .color-combo-swatch {
+            width: 18px; height: 18px;
+            border-radius: 50%;
+            border: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        .color-combo-noresult {
+            padding: 10px 12px;
+            font-size: 13px;
+            color: var(--hint);
+        }
+
+        /* === CONTRACTOR BAR === */
+        .contractor-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: linear-gradient(135deg, var(--accent), #1a5276);
+            border-radius: 12px;
+            color: #fff;
+        }
+
+        .contractor-icon {
+            font-size: 28px;
+            flex-shrink: 0;
+        }
+
+        .contractor-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .contractor-name {
+            font-size: 16px;
+            font-weight: 700;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .contractor-id {
+            font-size: 12px;
+            opacity: 0.8;
+            margin-top: 2px;
+        }
+
+        /* === PRODUCT PHOTO === */
+        .product-photo-block {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+            padding: 10px;
+            background: var(--bg);
+            border-radius: 10px;
+            border: 1px solid var(--border);
+        }
+
+        .product-thumb {
+            width: 64px;
+            height: 64px;
+            border-radius: 10px;
+            object-fit: cover;
+            background: var(--card);
+            border: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        .product-thumb-placeholder {
+            width: 64px;
+            height: 64px;
+            border-radius: 10px;
+            background: var(--card);
+            border: 2px dashed var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            color: var(--hint);
+            flex-shrink: 0;
+            cursor: pointer;
+        }
+
+        .product-photo-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .product-photo-info .photo-product-name {
+            font-weight: 600;
+            font-size: 14px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .product-photo-info .photo-product-id {
+            font-size: 12px;
+            color: var(--hint);
+        }
+
+        .btn-upload-photo {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 6px 12px;
+            background: var(--card);
+            border: 1.5px solid var(--border);
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--accent);
+            cursor: pointer;
+            margin-top: 6px;
+        }
+
+        .btn-upload-photo:active {
+            background: var(--accent);
+            color: var(--accent-text);
+        }
+
+        .photo-upload-input {
+            display: none;
+        }
+
+        /* === PREVIEW SUMMARY === */
+        .preview-section {
+            display: none;
+            margin-bottom: 20px;
+        }
+
+        .preview-section.visible {
+            display: block;
+        }
+
+        .preview-card {
+            background: var(--card);
+            border-radius: 14px;
+            border: 2px solid var(--accent);
+            overflow: hidden;
+        }
+
+        .preview-header {
+            background: linear-gradient(135deg, var(--accent), #1a5276);
+            color: #fff;
+            padding: 12px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .preview-header h3 {
+            font-size: 15px;
+            font-weight: 700;
+        }
+
+        .preview-header .preview-total {
+            font-size: 14px;
+            font-weight: 700;
+            background: rgba(255,255,255,0.2);
+            padding: 4px 10px;
+            border-radius: 8px;
+        }
+
+        .preview-body {
+            padding: 12px 16px;
+        }
+
+        .preview-info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            font-size: 13px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .preview-info-row:last-child {
+            border-bottom: none;
+        }
+
+        .preview-info-label {
+            color: var(--hint);
+        }
+
+        .preview-info-value {
+            font-weight: 600;
+        }
+
+        .preview-model {
+            margin-top: 10px;
+            padding: 10px 12px;
+            background: var(--bg);
+            border-radius: 10px;
+            border: 1px solid var(--border);
+        }
+
+        .preview-model-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        .preview-model-name {
+            font-weight: 700;
+            font-size: 13px;
+        }
+
+        .preview-model-sum {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--accent);
+        }
+
+        .preview-color-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 3px 0;
+            font-size: 12px;
+        }
+
+        .preview-color-name {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .preview-color-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            border: 1px solid var(--border);
+        }
+
+        .preview-color-sizes {
+            color: var(--hint);
+            font-size: 11px;
+        }
+
+        .preview-color-qty {
+            font-weight: 600;
+        }
+
+        .preview-grand-total {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 12px;
+            padding: 10px 12px;
+            background: linear-gradient(135deg, var(--accent), #1a5276);
+            color: #fff;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 15px;
+        }
+
+        .photo-preview-uploaded {
+            margin-top: 6px;
+            font-size: 11px;
+            color: var(--success);
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+
+<div class="page-header">
+    <h1>&#128230; Новая партия</h1>
+    <p>Заполните данные по каждой модели</p>
+</div>
+
+<!-- Контрагент (заполняется автоматически из URL) -->
+<div class="section" id="contractorSection">
+    <div class="contractor-bar" id="contractorBar">
+        <span class="contractor-icon">&#128100;</span>
+        <div class="contractor-info">
+            <div class="contractor-name" id="contractorName">—</div>
+            <div class="contractor-id" id="contractorId"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Дата отправки -->
+<div class="section">
+    <div class="section-title">&#128197; Дата отправки</div>
+    <input type="date" id="shipDate">
+</div>
+
+<!-- Модели -->
+<div class="section">
+    <div class="section-title">&#128085; Модели в партии</div>
+    <div id="modelsContainer"></div>
+    <button class="btn-add" onclick="addModel()">&#10133; Добавить модель</button>
+</div>
+
+<!-- Комментарий -->
+<div class="section">
+    <div class="section-title">&#128172; Комментарий</div>
+    <textarea id="comment" placeholder="Особые условия, пожелания..."></textarea>
+</div>
+
+<!-- Превью сводки -->
+<div class="preview-section" id="previewSection">
+    <div class="section-title">&#128203; Сводка перед отправкой</div>
+    <div class="preview-card">
+        <div class="preview-header">
+            <h3 id="previewTitle">Сводная ведомость</h3>
+            <span class="preview-total" id="previewTotalBadge">0 шт</span>
+        </div>
+        <div class="preview-body" id="previewBody">
+            <!-- Генерируется динамически -->
+        </div>
+    </div>
+</div>
+
+<!-- Кнопка отправки (видна вне Telegram, в Telegram используется MainButton) -->
+<div class="section" id="submitSection">
+    <button class="btn-add" onclick="submitForm()" id="submitBtn"
+            style="background:var(--accent);color:var(--accent-text);border-style:solid;">
+        Отправить партию
+    </button>
+</div>
+
+<!-- Сводка внизу -->
+<div class="summary-bar" id="summaryBar" style="display:none;">
+    <div class="summary-row">
+        <span>Моделей:</span>
+        <span id="sumModels">0</span>
+    </div>
+    <div class="summary-row">
+        <span>Всего штук:</span>
+        <span id="sumQty">0</span>
+    </div>
+    <div class="summary-total">
+        <span>Итого:</span>
+        <span id="sumTotal">0</span>
+    </div>
+</div>
+
+<!-- Модалка для своего товара -->
+<div class="overlay" id="customProductOverlay">
+    <div class="modal">
+        <h3>Свой товар</h3>
+        <input type="text" id="customProductInput" placeholder="Название или артикул">
+        <div class="btn-row">
+            <button class="btn-cancel" onclick="closeCustomProduct()">Отмена</button>
+            <button class="btn-ok" onclick="applyCustomProduct()">OK</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// --- Telegram WebApp с fallback для браузера ---
+let tg = null;
+let isTelegram = false;
+try {
+    if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData) {
+        tg = window.Telegram.WebApp;
+        tg.ready();
+        tg.expand();
+        isTelegram = true;
+    }
+} catch(e) {}
+
+// Fallback объект если вне Telegram
+if (!tg) {
+    tg = {
+        themeParams: {},
+        MainButton: {
+            setText: function(){},
+            show: function(){},
+            hide: function(){},
+            enable: function(){},
+            onClick: function(){}
+        },
+        showAlert: function(msg) { alert(msg); },
+        sendData: function(data) {
+            alert('Данные для отправки:\n' + data.substring(0, 500) + '...');
+        }
+    };
+}
+
+// --- Theme ---
+const tp = tg.themeParams || {};
+if (tp.bg_color) document.documentElement.style.setProperty('--bg', tp.bg_color);
+if (tp.text_color) document.documentElement.style.setProperty('--text', tp.text_color);
+if (tp.hint_color) document.documentElement.style.setProperty('--hint', tp.hint_color);
+if (tp.button_color) document.documentElement.style.setProperty('--accent', tp.button_color);
+if (tp.button_text_color) document.documentElement.style.setProperty('--accent-text', tp.button_text_color);
+if (tp.secondary_bg_color) document.documentElement.style.setProperty('--card', tp.secondary_bg_color);
+
+// --- Config ---
+const SIZES = ['46', '48', '50', '52', '54', '56', '58', '60', '62', '64'];
+
+// Цвета — подгружаются из Google Таблицы через URL параметр ?colors=[...]
+// Формат: [{name:"Пудра",hex:"#F8BBD0"}, ...] или просто [{name:"Пудра"}, ...]
+let COLOR_PRESETS = [];
+
+(function loadColors() {
+    const params = new URLSearchParams(window.location.search);
+    const colorsParam = params.get('colors');
+    if (colorsParam) {
+        try {
+            COLOR_PRESETS = JSON.parse(decodeURIComponent(colorsParam));
+        } catch(e) {}
+    }
+    // Если пусто — дефолтный набор
+    if (COLOR_PRESETS.length === 0) {
+        COLOR_PRESETS = [
+            { name: 'Белый', hex: '#FFFFFF' },
+            { name: 'Чёрный', hex: '#222222' },
+            { name: 'Серый', hex: '#9E9E9E' },
+            { name: 'Красный', hex: '#E53935' },
+            { name: 'Синий', hex: '#1E88E5' },
+            { name: 'Голубой', hex: '#4FC3F7' },
+            { name: 'Зелёный', hex: '#43A047' },
+            { name: 'Жёлтый', hex: '#FDD835' },
+            { name: 'Розовый', hex: '#F48FB1' },
+            { name: 'Бежевый', hex: '#D7CCC8' },
+            { name: 'Коричневый', hex: '#6D4C41' },
+            { name: 'Фиолетовый', hex: '#8E24AA' },
+            { name: 'Оранжевый', hex: '#FB8C00' },
+            { name: 'Бордовый', hex: '#880E4F' },
+            { name: 'Хаки', hex: '#827717' },
+            { name: 'Молочный', hex: '#FFF8E1' },
+        ];
+    }
+    // Если hex не указан — генерируем нейтральный
+    COLOR_PRESETS.forEach(c => {
+        if (!c.hex) c.hex = '#CCCCCC';
+    });
+})();
+
+// Артикулы — будут подгружаться из Google Таблицы через URL параметр
+let PRODUCTS = [
+    // Пример: заполняется из таблицы контрагента
+];
+
+// --- State ---
+let modelCounter = 0;
+let currentCustomTarget = null;
+
+document.getElementById('shipDate').value = new Date().toISOString().split('T')[0];
+
+// --- Загрузка данных контрагента из URL ---
+let CONTRACTOR = { name: '', id: '' };
+(function loadContractor() {
+    const params = new URLSearchParams(window.location.search);
+    const name = params.get('contractor');
+    const cid = params.get('cid');
+    if (name) {
+        CONTRACTOR.name = decodeURIComponent(name);
+        CONTRACTOR.id = cid ? decodeURIComponent(cid) : '';
+        document.getElementById('contractorName').textContent = CONTRACTOR.name;
+        document.getElementById('contractorId').textContent = CONTRACTOR.id ? ('ID: ' + CONTRACTOR.id) : '';
+    } else {
+        // Если нет параметра — показываем дефолт для превью
+        document.getElementById('contractorName').textContent = 'ООО «Текстиль Восток»';
+        document.getElementById('contractorId').textContent = 'ID: CTR-007 (превью)';
+    }
+})();
+
+// --- Загрузка артикулов из URL параметра ---
+(function loadProducts() {
+    const params = new URLSearchParams(window.location.search);
+    const items = params.get('products');
+    if (items) {
+        try {
+            PRODUCTS = JSON.parse(decodeURIComponent(items));
+        } catch(e) {}
+    }
+    // Если пусто — дефолтный список (photo — URL из Google Таблицы или пусто)
+    if (PRODUCTS.length === 0) {
+        PRODUCTS = [
+            { id: 'ART-001', name: 'Футболка базовая', photo: 'https://via.placeholder.com/128/4CAF50/fff?text=F' },
+            { id: 'ART-002', name: 'Джинсы классика', photo: 'https://via.placeholder.com/128/2196F3/fff?text=J' },
+            { id: 'ART-003', name: 'Куртка зимняя', photo: 'https://via.placeholder.com/128/FF9800/fff?text=K' },
+            { id: 'ART-004', name: 'Платье летнее', photo: '' },
+            { id: 'ART-005', name: 'Толстовка худи', photo: '' },
+        ];
+    }
+})();
+
+// --- Build product options ---
+function productOptionsHTML() {
+    let html = '<option value="">Выберите товар...</option>';
+    PRODUCTS.forEach(p => {
+        html += `<option value="${p.id}">${p.id} — ${p.name}</option>`;
+    });
+    html += '<option value="__custom__">&#9998; Свой вариант...</option>';
+    return html;
+}
+
+// === MODEL ===
+function addModel() {
+    modelCounter++;
+    const id = 'model-' + modelCounter;
+    const container = document.getElementById('modelsContainer');
+
+    const card = document.createElement('div');
+    card.className = 'model-card active';
+    card.id = id;
+
+    card.innerHTML = `
+        <div class="model-header">
+            <span class="model-badge">Модель ${modelCounter}</span>
+            <button class="btn-remove" onclick="removeModel('${id}')">&#10005;</button>
+        </div>
+
+        <!-- Товар -->
+        <div class="row">
+            <div style="flex:2">
+                <span class="label">Товар / Артикул</span>
+                <select onchange="onProductChange(this, '${id}')">
+                    ${productOptionsHTML()}
+                </select>
+            </div>
+            <div style="flex:1">
+                <span class="label">Цена закупки</span>
+                <input type="number" inputmode="decimal" step="any" placeholder="0.00"
+                       class="model-price" onchange="recalcAll()">
+            </div>
+        </div>
+
+        <div class="row" id="${id}-customName" style="display:none;">
+            <div>
+                <span class="label">Своё название</span>
+                <input type="text" placeholder="Название товара" class="custom-name-input">
+            </div>
+        </div>
+
+        <!-- Фото товара -->
+        <div class="product-photo-block" id="${id}-photoBlock">
+            <div class="product-thumb-placeholder" id="${id}-thumb" onclick="triggerPhotoUpload('${id}')">
+                &#128247;
+            </div>
+            <div class="product-photo-info">
+                <div class="photo-product-name" id="${id}-photoName">Выберите товар</div>
+                <div class="photo-product-id" id="${id}-photoId">—</div>
+                <label class="btn-upload-photo" for="${id}-fileInput">
+                    &#128247; Загрузить фото
+                </label>
+                <input type="file" accept="image/*" capture="environment"
+                       class="photo-upload-input" id="${id}-fileInput"
+                       onchange="handlePhotoUpload(this, '${id}')">
+                <div class="photo-preview-uploaded" id="${id}-uploadStatus" style="display:none;">
+                    &#10003; Фото загружено
+                </div>
+            </div>
+        </div>
+
+        <!-- Размеры + Серия — единая панель -->
+        <div class="size-series-bar">
+            <div class="bar-group">
+                <span class="bar-label">Размеры</span>
+                <select class="size-from" onchange="onSizeRangeChange('${id}')">
+                    ${SIZES.map(s => '<option value="'+s+'"'+(s==='46'?' selected':'')+'>'+s+'</option>').join('')}
+                </select>
+                <span style="font-size:12px; color:var(--hint);">—</span>
+                <select class="size-to" onchange="onSizeRangeChange('${id}')">
+                    ${SIZES.map(s => '<option value="'+s+'"'+(s==='64'?' selected':'')+'>'+s+'</option>').join('')}
+                </select>
+            </div>
+            <div class="bar-divider"></div>
+            <div class="bar-group">
+                <span class="bar-label">Линеек</span>
+                <select class="model-lineup-count" onchange="applyModelLineup('${id}')">
+                    <option value="0">—</option>
+                    ${Array.from({length:50},(_,i)=>i+1).map(n => '<option value="'+n+'">'+n+'</option>').join('')}
+                </select>
+            </div>
+            <div class="bar-group">
+                <span class="bar-label">Шт/разм</span>
+                <select class="model-lineup-per" onchange="applyModelLineup('${id}')">
+                    <option value="0">—</option>
+                    ${Array.from({length:10},(_,i)=>i+1).map(n => '<option value="'+n+'">'+n+'</option>').join('')}
+                </select>
+            </div>
+        </div>
+
+        <!-- Цвета -->
+        <div class="section-title" style="font-size:12px; margin-top:8px;">&#127912; Цвета и количество</div>
+        <div id="${id}-colors"></div>
+        <button class="btn-add-sm" onclick="addColor('${id}')">+ Добавить цвет</button>
+    `;
+
+    container.appendChild(card);
+    addColor(id); // Первый цвет сразу
+    recalcAll();
+}
+
+function removeModel(id) {
+    document.getElementById(id)?.remove();
+    renumberModels();
+    recalcAll();
+}
+
+function renumberModels() {
+    const cards = document.querySelectorAll('.model-card');
+    cards.forEach((c, i) => {
+        const badge = c.querySelector('.model-badge');
+        if (badge) badge.textContent = 'Модель ' + (i + 1);
+    });
+    modelCounter = cards.length;
+}
+
+function onProductChange(sel, modelId) {
+    const customRow = document.getElementById(modelId + '-customName');
+    if (sel.value === '__custom__') {
+        customRow.style.display = '';
+        customRow.querySelector('input').focus();
+        // Сброс фото-блока
+        updatePhotoBlock(modelId, null, 'Свой товар', '');
+    } else if (sel.value) {
+        customRow.style.display = 'none';
+        // Найти продукт и показать фото
+        const product = PRODUCTS.find(p => p.id === sel.value);
+        if (product) {
+            updatePhotoBlock(modelId, product.photo, product.name, product.id);
+        }
+    } else {
+        customRow.style.display = 'none';
+        updatePhotoBlock(modelId, null, 'Выберите товар', '—');
+    }
+}
+
+function updatePhotoBlock(modelId, photoUrl, name, artId) {
+    const thumb = document.getElementById(modelId + '-thumb');
+    const nameEl = document.getElementById(modelId + '-photoName');
+    const idEl = document.getElementById(modelId + '-photoId');
+
+    if (nameEl) nameEl.textContent = name;
+    if (idEl) idEl.textContent = artId || '';
+
+    if (photoUrl && thumb) {
+        // Заменяем placeholder на img
+        const img = document.createElement('img');
+        img.src = photoUrl;
+        img.className = 'product-thumb';
+        img.alt = name;
+        img.onerror = function() {
+            // Если фото не загрузилось — вернуть placeholder
+            this.replaceWith(createThumbPlaceholder(modelId));
+        };
+        thumb.replaceWith(img);
+        // Сохраняем id для замены при загрузке
+        img.id = modelId + '-thumb';
+    } else if (thumb && thumb.tagName === 'IMG') {
+        // Вернуть placeholder
+        const ph = createThumbPlaceholder(modelId);
+        thumb.replaceWith(ph);
+    }
+}
+
+function createThumbPlaceholder(modelId) {
+    const div = document.createElement('div');
+    div.className = 'product-thumb-placeholder';
+    div.id = modelId + '-thumb';
+    div.innerHTML = '&#128247;';
+    div.onclick = function() { triggerPhotoUpload(modelId); };
+    return div;
+}
+
+function triggerPhotoUpload(modelId) {
+    const input = document.getElementById(modelId + '-fileInput');
+    if (input) input.click();
+}
+
+// Хранилище загруженных фото (base64) для отправки
+const uploadedPhotos = {};
+
+function handlePhotoUpload(input, modelId) {
+    const file = input.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const dataUrl = e.target.result;
+
+        // Показать превью
+        const thumb = document.getElementById(modelId + '-thumb');
+        if (thumb) {
+            const img = document.createElement('img');
+            img.src = dataUrl;
+            img.className = 'product-thumb';
+            img.id = modelId + '-thumb';
+            thumb.replaceWith(img);
+        }
+
+        // Статус
+        const status = document.getElementById(modelId + '-uploadStatus');
+        if (status) {
+            status.style.display = '';
+            status.textContent = '\u2713 ' + file.name;
+        }
+
+        // Сохраняем для отправки (ужимаем до 200px для экономии)
+        compressImage(dataUrl, 200, function(compressed) {
+            uploadedPhotos[modelId] = compressed;
+        });
+    };
+    reader.readAsDataURL(file);
+}
+
+function compressImage(dataUrl, maxSize, callback) {
+    const img = new Image();
+    img.onload = function() {
+        const canvas = document.createElement('canvas');
+        let w = img.width, h = img.height;
+        if (w > h) { h = h * maxSize / w; w = maxSize; }
+        else { w = w * maxSize / h; h = maxSize; }
+        canvas.width = w;
+        canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        callback(canvas.toDataURL('image/jpeg', 0.7));
+    };
+    img.src = dataUrl;
+}
+
+// === COLOR ===
+function addColor(modelId) {
+    const container = document.getElementById(modelId + '-colors');
+    const colorId = modelId + '-color-' + Date.now();
+
+    const block = document.createElement('div');
+    block.className = 'color-block';
+    block.id = colorId;
+
+    block.innerHTML = `
+        <div class="color-header">
+            <div class="color-combo" style="flex:1;">
+                <input type="text" class="color-combo-input" placeholder="Введите или выберите цвет..."
+                       autocomplete="off"
+                       onfocus="openColorDropdown('${colorId}')"
+                       oninput="filterColorDropdown('${colorId}')"
+                       id="${colorId}-input">
+                <button class="color-combo-clear" id="${colorId}-clear"
+                        onclick="clearColorInput('${colorId}')">&times;</button>
+                <div class="color-combo-dropdown" id="${colorId}-dropdown">
+                    ${COLOR_PRESETS.map(c =>
+                        `<div class="color-combo-option" data-name="${c.name}"
+                              onclick="selectColorOption('${colorId}', '${c.name}')">
+                            <span class="color-combo-swatch" style="background:${c.hex}"></span>
+                            ${c.name}
+                        </div>`
+                    ).join('')}
+                </div>
+            </div>
+            <button class="btn-remove-sm" onclick="removeColor('${colorId}')">&#10005;</button>
+        </div>
+
+        <!-- Размерная сетка (всегда видна) -->
+        <div class="size-grid">
+            ${SIZES.map(s => `
+                <div class="size-cell">
+                    <div class="size-label">${s}</div>
+                    <input type="number" inputmode="numeric" placeholder="—"
+                           data-size="${s}" oninput="onSizeInput('${colorId}')">
+                </div>
+            `).join('')}
+        </div>
+
+        <!-- Итого (автоматически) -->
+        <div class="color-total-row" id="${colorId}-totalRow">
+            <span>Итого:</span>
+            <span class="color-total-num" id="${colorId}-totalNum">0 шт</span>
+        </div>
+
+    `;
+
+    container.appendChild(block);
+    // Применяем текущий диапазон размеров модели
+    onSizeRangeChange(modelId);
+    recalcAll();
+}
+
+function removeColor(colorId) {
+    document.getElementById(colorId)?.remove();
+    recalcAll();
+}
+
+// === COLOR COMBO-INPUT FUNCTIONS ===
+function openColorDropdown(colorId) {
+    const dropdown = document.getElementById(colorId + '-dropdown');
+    dropdown.classList.add('open');
+    filterColorDropdown(colorId);
+    // Закрытие при клике вне
+    setTimeout(() => {
+        document.addEventListener('click', function handler(e) {
+            const combo = dropdown.closest('.color-combo');
+            if (!combo.contains(e.target)) {
+                dropdown.classList.remove('open');
+                document.removeEventListener('click', handler);
+            }
+        });
+    }, 10);
+}
+
+function filterColorDropdown(colorId) {
+    const input = document.getElementById(colorId + '-input');
+    const dropdown = document.getElementById(colorId + '-dropdown');
+    const clearBtn = document.getElementById(colorId + '-clear');
+    const query = input.value.trim().toLowerCase();
+
+    clearBtn.style.display = query ? 'flex' : 'none';
+
+    const options = dropdown.querySelectorAll('.color-combo-option');
+    let anyVisible = false;
+    options.forEach(opt => {
+        const name = opt.dataset.name.toLowerCase();
+        const match = !query || name.includes(query);
+        opt.style.display = match ? '' : 'none';
+        if (match) anyVisible = true;
+    });
+
+    // Показать подсказку "свой цвет" если нет точного совпадения
+    let noRes = dropdown.querySelector('.color-combo-noresult');
+    const exactMatch = COLOR_PRESETS.some(c => c.name.toLowerCase() === query);
+    if (query && !exactMatch) {
+        if (!noRes) {
+            noRes = document.createElement('div');
+            noRes.className = 'color-combo-noresult';
+            dropdown.appendChild(noRes);
+        }
+        noRes.innerHTML = '&#9998; Свой цвет: <b>' + input.value.trim() + '</b>';
+        noRes.style.display = '';
+        noRes.style.cursor = 'pointer';
+        noRes.onclick = function() {
+            dropdown.classList.remove('open');
+            document.getElementById(colorId + '-clear').style.display = 'flex';
+        };
+    } else if (noRes) {
+        noRes.style.display = 'none';
+    }
+}
+
+function selectColorOption(colorId, colorName) {
+    const input = document.getElementById(colorId + '-input');
+    const dropdown = document.getElementById(colorId + '-dropdown');
+    const clearBtn = document.getElementById(colorId + '-clear');
+    input.value = colorName;
+    dropdown.classList.remove('open');
+    clearBtn.style.display = 'flex';
+}
+
+function clearColorInput(colorId) {
+    const input = document.getElementById(colorId + '-input');
+    const clearBtn = document.getElementById(colorId + '-clear');
+    input.value = '';
+    clearBtn.style.display = 'none';
+    input.focus();
+}
+
+// === SIZE INPUT & LINEUP ===
+function onSizeInput(colorId) {
+    updateColorTotal(colorId);
+    recalcAll();
+}
+
+function updateColorTotal(colorId) {
+    const block = document.getElementById(colorId);
+    if (!block) return;
+    let total = 0;
+    block.querySelectorAll('.size-grid input').forEach(inp => {
+        // Считаем только активные размеры
+        if (!inp.closest('.size-cell')?.classList.contains('size-disabled')) {
+            total += parseInt(inp.value) || 0;
+        }
+    });
+    const numEl = document.getElementById(colorId + '-totalNum');
+    if (numEl) numEl.textContent = total + ' шт';
+}
+
+function onSizeRangeChange(modelId) {
+    const card = document.getElementById(modelId);
+    if (!card) return;
+    const fromVal = parseInt(card.querySelector('.size-from')?.value) || 46;
+    const toVal = parseInt(card.querySelector('.size-to')?.value) || 64;
+
+    // Обновляем все цветовые блоки в этой модели
+    card.querySelectorAll('.color-block').forEach(colorBlock => {
+        colorBlock.querySelectorAll('.size-cell').forEach(cell => {
+            const sizeVal = parseInt(cell.querySelector('input')?.dataset.size) || 0;
+            if (sizeVal >= fromVal && sizeVal <= toVal) {
+                cell.classList.remove('size-disabled');
+            } else {
+                cell.classList.add('size-disabled');
+                const inp = cell.querySelector('input');
+                if (inp) inp.value = '';
+            }
+        });
+        // Пересчитать итого цвета
+        const colorId = colorBlock.id;
+        updateColorTotal(colorId);
+    });
+    recalcAll();
+}
+
+function applyModelLineup(modelId) {
+    const card = document.getElementById(modelId);
+    if (!card) return;
+    const lineupCount = parseInt(card.querySelector('.model-lineup-count')?.value) || 0;
+    const perSize = parseInt(card.querySelector('.model-lineup-per')?.value) || 0;
+
+    if (lineupCount <= 0 || perSize <= 0) return;
+
+    const qtyPerSize = lineupCount * perSize;
+
+    // Заполняем все цветовые блоки этой модели
+    card.querySelectorAll('.color-block').forEach(colorBlock => {
+        colorBlock.querySelectorAll('.size-cell').forEach(cell => {
+            const inp = cell.querySelector('input');
+            if (!cell.classList.contains('size-disabled')) {
+                inp.value = qtyPerSize;
+            }
+        });
+        updateColorTotal(colorBlock.id);
+    });
+    recalcAll();
+}
+
+// === CUSTOM PRODUCT ===
+function closeCustomProduct() {
+    document.getElementById('customProductOverlay').classList.remove('active');
+}
+
+function applyCustomProduct() {
+    const name = document.getElementById('customProductInput').value.trim();
+    if (name && currentCustomTarget) {
+        currentCustomTarget.value = name;
+    }
+    closeCustomProduct();
+}
+
+// === CALC & SUBMIT ===
+function getColorQty(colorBlock) {
+    let total = 0;
+    const bySize = {};
+    colorBlock.querySelectorAll('.size-cell').forEach(cell => {
+        const inp = cell.querySelector('input');
+        if (!inp) return;
+        if (cell.classList.contains('size-disabled')) return;
+        const v = parseInt(inp.value) || 0;
+        bySize[inp.dataset.size] = v;
+        total += v;
+    });
+
+    // Берём данные серии с уровня модели
+    const modelCard = colorBlock.closest('.model-card');
+    const lineupCount = parseInt(modelCard?.querySelector('.model-lineup-count')?.value) || 0;
+    const perSize = parseInt(modelCard?.querySelector('.model-lineup-per')?.value) || 0;
+
+    if (lineupCount > 0 && perSize > 0) {
+        return { mode: 'series', bySize, lineupCount, perSize, total };
+    }
+
+    return { mode: 'sizes', bySize, total };
+}
+
+function getAllData() {
+    const models = [];
+    document.querySelectorAll('.model-card').forEach(card => {
+        const sel = card.querySelector('select');
+        let productId = sel.value;
+        let productName = '';
+
+        if (productId === '__custom__') {
+            productName = card.querySelector('.custom-name-input')?.value?.trim() || '';
+            productId = 'CUSTOM';
+        } else {
+            const opt = sel.options[sel.selectedIndex];
+            productName = opt?.textContent || '';
+        }
+
+        const price = parseFloat(card.querySelector('.model-price')?.value) || 0;
+
+        const colors = [];
+        card.querySelectorAll('.color-block').forEach(cb => {
+            const colorName = cb.querySelector('.color-combo-input')?.value?.trim() || '';
+            const qtyData = getColorQty(cb);
+            if (colorName && qtyData.total > 0) {
+                colors.push({
+                    color: colorName,
+                    ...qtyData
+                });
+            }
+        });
+
+        if (productId && colors.length > 0) {
+            const totalQty = colors.reduce((s, c) => s + c.total, 0);
+            const modelId = card.id;
+            const modelData = {
+                productId,
+                productName,
+                price,
+                colors,
+                totalQty,
+                totalSum: totalQty * price
+            };
+            // Если есть загруженное фото — пометим (base64 не шлём через sendData, слишком большой)
+            if (uploadedPhotos[modelId]) {
+                modelData.hasUploadedPhoto = true;
+            }
+            models.push(modelData);
+        }
+    });
+
+    return models;
+}
+
+function recalcAll() {
+    const models = getAllData();
+    const bar = document.getElementById('summaryBar');
+
+    if (models.length > 0) {
+        bar.style.display = '';
+        document.getElementById('sumModels').textContent = models.length;
+        const totalQty = models.reduce((s, m) => s + m.totalQty, 0);
+        const totalSum = models.reduce((s, m) => s + m.totalSum, 0);
+        document.getElementById('sumQty').textContent = totalQty + ' шт';
+        document.getElementById('sumTotal').textContent = totalSum.toFixed(2);
+    } else {
+        bar.style.display = 'none';
+    }
+
+    renderPreview(models);
+    updateMainButton(models);
+}
+
+// === PREVIEW SUMMARY ===
+function renderPreview(models) {
+    const section = document.getElementById('previewSection');
+    const body = document.getElementById('previewBody');
+    const badge = document.getElementById('previewTotalBadge');
+
+    if (!models || models.length === 0 || models.every(m => m.totalQty === 0)) {
+        section.classList.remove('visible');
+        return;
+    }
+
+    section.classList.add('visible');
+
+    const totalQty = models.reduce((s, m) => s + m.totalQty, 0);
+    const totalSum = models.reduce((s, m) => s + m.totalSum, 0);
+    const totalColors = models.reduce((s, m) => s + m.colors.length, 0);
+    const shipDate = document.getElementById('shipDate').value;
+
+    badge.textContent = totalQty + ' шт';
+
+    // Найти hex цвета по имени
+    function colorHex(name) {
+        const found = COLOR_PRESETS.find(c => c.name.toLowerCase() === name.toLowerCase());
+        return found ? found.hex : '#CCCCCC';
+    }
+
+    // Форматируем размеры
+    function formatSizes(color) {
+        if (color.mode === 'sizes' && color.bySize) {
+            const parts = [];
+            for (const [sz, qty] of Object.entries(color.bySize)) {
+                if (qty > 0) parts.push(sz + ':' + qty);
+            }
+            return parts.join(' / ');
+        } else if (color.mode === 'series') {
+            // Показываем серию + отклонения по размерам
+            const lc = color.lineupCount || 0;
+            const ps = color.perSize || 0;
+            const base = lc * ps;
+            const adjusted = [];
+            if (color.bySize) {
+                for (const [sz, qty] of Object.entries(color.bySize)) {
+                    if (qty > 0 && qty !== base) adjusted.push(sz + ':' + qty);
+                }
+            }
+            let text = lc + ' лин. × ' + ps + ' шт/размер';
+            if (adjusted.length > 0) text += ' (корр: ' + adjusted.join(', ') + ')';
+            return text;
+        }
+        return '';
+    }
+
+    let html = '';
+
+    // Инфо
+    html += '<div class="preview-info-row">';
+    html += '<span class="preview-info-label">Контрагент</span>';
+    html += '<span class="preview-info-value">' + (CONTRACTOR.name || '—') + '</span>';
+    html += '</div>';
+    html += '<div class="preview-info-row">';
+    html += '<span class="preview-info-label">Дата отправки</span>';
+    html += '<span class="preview-info-value">' + (shipDate || '—') + '</span>';
+    html += '</div>';
+    html += '<div class="preview-info-row">';
+    html += '<span class="preview-info-label">Моделей / Цветов</span>';
+    html += '<span class="preview-info-value">' + models.length + ' мод. / ' + totalColors + ' цв.</span>';
+    html += '</div>';
+
+    // Модели
+    models.forEach((m, i) => {
+        html += '<div class="preview-model">';
+        html += '<div class="preview-model-header">';
+        html += '<span class="preview-model-name">' + (i+1) + '. ' + (m.productName || '—') + '</span>';
+        html += '<span class="preview-model-sum">' + m.totalQty + ' шт / ' + m.totalSum.toFixed(0) + '</span>';
+        html += '</div>';
+
+        m.colors.forEach(c => {
+            html += '<div class="preview-color-row">';
+            html += '<span class="preview-color-name">';
+            html += '<span class="preview-color-dot" style="background:' + colorHex(c.color) + '"></span>';
+            html += c.color;
+            html += '</span>';
+            const sizes = formatSizes(c);
+            if (sizes) {
+                html += '<span class="preview-color-sizes">' + sizes + '</span>';
+            }
+            html += '<span class="preview-color-qty">' + c.total + '</span>';
+            html += '</div>';
+        });
+
+        if (m.price > 0) {
+            html += '<div class="preview-color-row" style="margin-top:4px;padding-top:4px;border-top:1px dashed var(--border);">';
+            html += '<span class="preview-info-label">Цена за ед.</span>';
+            html += '<span class="preview-color-qty">' + m.price.toFixed(2) + '</span>';
+            html += '</div>';
+        }
+
+        html += '</div>';
+    });
+
+    // Итого
+    html += '<div class="preview-grand-total">';
+    html += '<span>ИТОГО</span>';
+    html += '<span>' + totalQty + ' шт — ' + totalSum.toFixed(2) + '</span>';
+    html += '</div>';
+
+    body.innerHTML = html;
+}
+
+function updateMainButton(models) {
+    if (!models) models = getAllData();
+    if (models.length > 0) {
+        const totalQty = models.reduce((s, m) => s + m.totalQty, 0);
+        tg.MainButton.setText('Отправить (' + models.length + ' мод., ' + totalQty + ' шт)');
+        tg.MainButton.show();
+        tg.MainButton.enable();
+    } else {
+        tg.MainButton.hide();
+    }
+}
+
+tg.MainButton.onClick(function() {
+    const models = getAllData();
+    if (models.length === 0) {
+        tg.showAlert('Добавьте хотя бы одну модель с цветом и количеством');
+        return;
+    }
+
+    const data = {
+        type: 'webapp_delivery',
+        shipDate: document.getElementById('shipDate').value,
+        models: models,
+        comment: document.getElementById('comment').value.trim(),
+        totalQty: models.reduce((s, m) => s + m.totalQty, 0),
+        totalSum: models.reduce((s, m) => s + m.totalSum, 0)
+    };
+
+    // sendData ограничен 4096 байт — проверяем
+    const json = JSON.stringify(data);
+    if (json.length > 4000) {
+        // Сжимаем: убираем bySize если пустые
+        data.models.forEach(m => {
+            m.colors.forEach(c => {
+                if (c.bySize) {
+                    // Оставляем только ненулевые
+                    const filtered = {};
+                    for (const [k, v] of Object.entries(c.bySize)) {
+                        if (v > 0) filtered[k] = v;
+                    }
+                    c.bySize = filtered;
+                }
+            });
+        });
+    }
+
+    tg.sendData(JSON.stringify(data));
+});
+
+// Скрываем HTML-кнопку если в Telegram (там MainButton)
+if (isTelegram) {
+    const ss = document.getElementById('submitSection');
+    if (ss) ss.style.display = 'none';
+}
+
+function submitForm() {
+    const models = getAllData();
+    if (models.length === 0) {
+        tg.showAlert('Добавьте хотя бы одну модель с цветом и количеством');
+        return;
+    }
+
+    const data = {
+        type: 'webapp_delivery',
+        contractor: CONTRACTOR.name,
+        contractorId: CONTRACTOR.id,
+        shipDate: document.getElementById('shipDate').value,
+        models: models,
+        comment: document.getElementById('comment').value.trim(),
+        totalQty: models.reduce((s, m) => s + m.totalQty, 0),
+        totalSum: models.reduce((s, m) => s + m.totalSum, 0)
+    };
+
+    tg.sendData(JSON.stringify(data));
+}
+
+// Добавляем первую модель
+addModel();
+</script>
+
+</body>
+</html>
