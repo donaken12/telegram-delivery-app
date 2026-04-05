@@ -17,6 +17,54 @@
             --danger: #e53935;
             --success: #43a047;
         }
+        [data-theme="dark"] {
+            --bg: #1c1c1e;
+            --text: #f2f2f7;
+            --hint: #8e8e93;
+            --accent: #2678b6;
+            --accent-text: #ffffff;
+            --card: #2c2c2e;
+            --border: #3a3a3c;
+            --danger: #ff453a;
+            --success: #30d158;
+        }
+
+        /* === THEME TOGGLE === */
+        .theme-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 10px;
+            font-size: 16px;
+        }
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: var(--border);
+            border-radius: 24px;
+            transition: 0.3s;
+        }
+        .toggle-slider:before {
+            content: '';
+            position: absolute;
+            width: 18px; height: 18px;
+            left: 3px; bottom: 3px;
+            background: white;
+            border-radius: 50%;
+            transition: 0.3s;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        }
+        .toggle-switch input:checked + .toggle-slider { background: var(--accent); }
+        .toggle-switch input:checked + .toggle-slider:before { transform: translateX(20px); }
         * { margin: 0; padding: 0; box-sizing: border-box; 
 
         body {
@@ -763,6 +811,14 @@
 <div class="page-header">
     <h1>&#128230; Новая партия</h1>
     <p>Заполните данные по каждой модели</p>
+    <div class="theme-toggle">
+        <span>&#9728;&#65039;</span>
+        <label class="toggle-switch">
+            <input type="checkbox" id="themeToggle">
+            <span class="toggle-slider"></span>
+        </label>
+        <span>&#127769;</span>
+    </div>
 </div>
 
 <!-- Контрагент (заполняется автоматически из URL) -->
@@ -847,24 +903,11 @@
 
 <script>
 
-  // === ТЕМА ИЗ TELEGRAM ===
+  // === ТЕМА: светлая по умолчанию, ползунок для переключения ===
   (function() {
-    var tg = window.Telegram && window.Telegram.WebApp;
-    function applyTheme() {
-      var scheme = tg ? tg.colorScheme : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-      document.documentElement.setAttribute('data-theme', scheme);
-      if (tg && tg.themeParams) {
-        var p = tg.themeParams, r = document.documentElement.style;
-        if (p.bg_color) r.setProperty('--bg', p.bg_color);
-        if (p.text_color) r.setProperty('--text', p.text_color);
-        if (p.hint_color) r.setProperty('--hint', p.hint_color);
-        if (p.button_color) r.setProperty('--accent', p.button_color);
-        if (p.button_text_color) r.setProperty('--accent-text', p.button_text_color);
-        if (p.secondary_bg_color) r.setProperty('--card', p.secondary_bg_color);
-      }
-    }
-    if (tg) { tg.ready(); applyTheme(); tg.onEvent('themeChanged', applyTheme); }
-    else { applyTheme(); }
+    // Применяем сохранённую тему сразу (до рендера)
+    var saved = localStorage.getItem('appTheme') || 'light';
+    document.documentElement.setAttribute('data-theme', saved);
   })();
 
 // --- Telegram WebApp с fallback для браузера ---
@@ -897,15 +940,18 @@ if (!tg) {
     };
 }
 
-// --- Theme ---
-const tp = tg.themeParams || {};
-if (tp.bg_color) document.documentElement.style.setProperty('--bg', tp.bg_color);
-if (tp.text_color) document.documentElement.style.setProperty('--text', tp.text_color);
-if (tp.hint_color) document.documentElement.style.setProperty('--hint', tp.hint_color);
-if (tp.button_color) document.documentElement.style.setProperty('--accent', tp.button_color);
-if (tp.button_text_color) document.documentElement.style.setProperty('--accent-text', tp.button_text_color);
-if (tp.secondary_bg_color) document.documentElement.style.setProperty('--card', tp.secondary_bg_color);
-
+// --- Theme Toggle ---
+(function() {
+    var toggle = document.getElementById('themeToggle');
+    if (!toggle) return;
+    var current = localStorage.getItem('appTheme') || 'light';
+    toggle.checked = (current === 'dark');
+    toggle.addEventListener('change', function() {
+        var theme = this.checked ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('appTheme', theme);
+    });
+})();
 // --- Config ---
 const SIZES = ['46', '48', '50', '52', '54', '56', '58', '60', '62', '64'];
 
