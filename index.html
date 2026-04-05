@@ -17,7 +17,7 @@
             --danger: #e53935;
             --success: #43a047;
         }
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * { margin: 0; padding: 0; box-sizing: border-box; 
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -1387,7 +1387,7 @@ function updateColorTotal(colorId) {
     const modelCard2 = block.closest('.model-card');
     const lc2 = parseInt(modelCard2?.querySelector('.model-lineup-count')?.value) || 0;
     const ps2 = parseInt(modelCard2?.querySelector('.model-lineup-per')?.value) || 0;
-    const displayTotal = (lc2 > 0 && ps2 > 0) ? total * lc2 : total;
+    const displayTotal = total;
     const numEl = document.getElementById(colorId + '-totalNum');
     if (numEl) numEl.textContent = displayTotal + ' шт';
 }
@@ -1473,8 +1473,8 @@ function getColorQty(colorBlock) {
 
     if (lineupCount > 0 && perSize > 0) {
         const sizesForBackend = {};
-            Object.keys(bySize).forEach(k => { sizesForBackend[k] = (bySize[k] || 0) * lineupCount; });
-            return { mode: 'series', sizes: sizesForBackend, bySize, lineupCount, perSize, total: total * lineupCount };
+            Object.keys(bySize).forEach(k => { sizesForBackend[k] = bySize[k] || 0; });
+            return { mode: 'series', sizes: sizesForBackend, bySize, lineupCount, perSize, total };
     }
 
     return { mode: 'sizes', bySize, total };
