@@ -1384,8 +1384,12 @@ function updateColorTotal(colorId) {
             total += parseInt(inp.value) || 0;
         }
     });
+    const modelCard2 = block.closest('.model-card');
+    const lc2 = parseInt(modelCard2?.querySelector('.model-lineup-count')?.value) || 0;
+    const ps2 = parseInt(modelCard2?.querySelector('.model-lineup-per')?.value) || 0;
+    const displayTotal = (lc2 > 0 && ps2 > 0) ? total * lc2 : total;
     const numEl = document.getElementById(colorId + '-totalNum');
-    if (numEl) numEl.textContent = total + ' шт';
+    if (numEl) numEl.textContent = displayTotal + ' шт';
 }
 
 function onSizeRangeChange(modelId) {
@@ -1421,7 +1425,7 @@ function applyModelLineup(modelId) {
 
     if (lineupCount <= 0 || perSize <= 0) return;
 
-    const qtyPerSize = lineupCount * perSize;
+    const qtyPerSize = perSize; // шт/разм на один размер
 
     // Заполняем все цветовые блоки этой модели
     card.querySelectorAll('.color-block').forEach(colorBlock => {
@@ -1468,7 +1472,9 @@ function getColorQty(colorBlock) {
     const perSize = parseInt(modelCard?.querySelector('.model-lineup-per')?.value) || 0;
 
     if (lineupCount > 0 && perSize > 0) {
-        return { mode: 'series', bySize, lineupCount, perSize, total };
+        const sizesForBackend = {};
+            Object.keys(bySize).forEach(k => { sizesForBackend[k] = (bySize[k] || 0) * lineupCount; });
+            return { mode: 'series', sizes: sizesForBackend, bySize, lineupCount, perSize, total: total * lineupCount };
     }
 
     return { mode: 'sizes', bySize, total };
