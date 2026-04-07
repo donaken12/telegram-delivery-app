@@ -2047,41 +2047,45 @@ function showDocModal(html, confirmData) {
     modal.id = '_docModal';
     modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:10000;background:#fff;display:flex;flex-direction:column;overflow:hidden;';
 
-    // Шапка
     var header = document.createElement('div');
     header.style.cssText = 'background:#2678b6;color:#fff;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;';
-
     var title = document.createElement('span');
     title.textContent = '📋 Ведомость поставки';
     title.style.cssText = 'font-weight:700;font-size:15px;';
-
     var closeBtn = document.createElement('button');
     closeBtn.textContent = '✕';
     closeBtn.style.cssText = 'background:rgba(255,255,255,.2);border:none;color:#fff;font-size:18px;font-weight:700;border-radius:6px;padding:4px 10px;cursor:pointer;';
-    closeBtn.addEventListener('click', function() {
-        var m = document.getElementById('_docModal');
-        if (m) m.remove();
-    });
-
+    closeBtn.addEventListener('click', function() { var m = document.getElementById('_docModal'); if (m) m.remove(); });
     header.appendChild(title);
     header.appendChild(closeBtn);
 
-    // iframe с документом
     var iframe = document.createElement('iframe');
     iframe.style.cssText = 'flex:1;border:none;width:100%;';
     iframe.srcdoc = html;
 
-    // Футер с кнопками
     var footer = document.createElement('div');
     footer.style.cssText = 'display:flex;gap:8px;padding:10px 14px;background:#f5f7fa;border-top:1px solid #ddd;flex-shrink:0;';
 
+    // Кнопка Открыть / PDF
     var printBtn = document.createElement('button');
-    printBtn.textContent = '🖨 Сохранить PDF';
+    printBtn.innerHTML = '🖨 Открыть PDF';
     printBtn.style.cssText = 'flex:1;padding:10px;border:1px solid #2678b6;background:#fff;color:#2678b6;font-size:14px;font-weight:600;border-radius:8px;cursor:pointer;';
     printBtn.addEventListener('click', function() {
-        try { iframe.contentWindow.print(); } catch(e) { window.print(); }
+        // Открываем документ в новом окне (работает в Telegram, браузере, iOS)
+        try {
+            var w = window.open('', '_blank');
+            if (w) { w.document.open(); w.document.write(html); w.document.close(); return; }
+        } catch(e1) {}
+        // Fallback — Telegram openLink
+        try {
+            if (tg && tg.openLink) {
+                var dataUrl = 'data:text/html;charset=utf-8,' + encodeURIComponent(html);
+                tg.openLink(dataUrl); return;
+            }
+        } catch(e2) {}
+        // Last resort — print iframe
+        try { iframe.contentWindow.print(); } catch(e3) {}
     });
-
     footer.appendChild(printBtn);
 
     if (confirmData) {
@@ -2090,13 +2094,31 @@ function showDocModal(html, confirmData) {
         sendBtn.style.cssText = 'flex:1;padding:10px;border:none;background:#2678b6;color:#fff;font-size:14px;font-weight:700;border-radius:8px;cursor:pointer;';
         sendBtn.addEventListener('click', function() {
             sendBtn.disabled = true;
-            sendBtn.textContent = '… Отправка';
+            sendBtn.textContent = '⧗ Отправка…';
+
             sendToSheets(confirmData);
             clearFormDraft();
-            try { tg.sendData(JSON.stringify(confirmData)); } catch(e) {}
-            var m = document.getElementById('_docModal');
-            if (m) m.remove();
-            showToast('✓ Данные отправлены!', 'ok');
+
+            // Показываем экран успеха
+            iframe.style.display = 'none';
+            var ok = document.createElement('div');
+            ok.style.cssText = 'flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:32px;text-align:center;';
+            ok.innerHTML = '<div style="font-size:56px;">✅</div>'
+                + '<div style="font-size:20px;font-weight:700;color:#2678b6;">Заявка отправлена!</div>'
+                + '<div style="font-size:13px;color:#666;max-width:260px;">Данные сохранены. Можно закрыть окно.</div>';
+            modal.insertBefore(ok, footer);
+
+            footer.innerHTML = '';
+            var doneBtn = document.createElement('button');
+            doneBtn.textContent = '✕ Закрыть';
+            doneBtn.style.cssText = 'flex:1;padding:12px;border:none;background:#2678b6;color:#fff;font-size:15px;font-weight:700;border-radius:8px;cursor:pointer;';
+            doneBtn.addEventListener('click', function() {
+                var m = document.getElementById('_docModal');
+                if (m) m.remove();
+                try { tg.sendData(JSON.stringify(confirmData)); } catch(e) {}
+                try { tg.close(); } catch(e2) {}
+            });
+            footer.appendChild(doneBtn);
         });
         footer.appendChild(sendBtn);
     }
