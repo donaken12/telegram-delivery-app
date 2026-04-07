@@ -601,28 +601,48 @@
         }
 
         .product-thumb {
-            width: 64px;
-            height: 64px;
+            width: 80px;
+            height: 80px;
             border-radius: 10px;
             object-fit: cover;
             background: var(--card);
             border: 1px solid var(--border);
             flex-shrink: 0;
+            cursor: pointer;
         }
 
         .product-thumb-placeholder {
-            width: 64px;
-            height: 64px;
+            width: 80px;
+            height: 80px;
             border-radius: 10px;
             background: var(--card);
             border: 2px dashed var(--border);
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
-            font-size: 28px;
+            gap: 2px;
             color: var(--hint);
             flex-shrink: 0;
             cursor: pointer;
+            transition: border-color 0.15s, background 0.15s;
+        }
+
+        .product-thumb-placeholder:active {
+            border-color: var(--accent);
+            background: var(--bg);
+        }
+
+        .product-thumb-placeholder .thumb-icon {
+            font-size: 26px;
+            line-height: 1;
+        }
+
+        .product-thumb-placeholder .thumb-hint {
+            font-size: 9px;
+            text-align: center;
+            line-height: 1.2;
+            padding: 0 4px;
         }
 
         .product-photo-info {
@@ -643,24 +663,11 @@
             color: var(--hint);
         }
 
-        .btn-upload-photo {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            padding: 6px 12px;
-            background: var(--card);
-            border: 1.5px solid var(--border);
-            border-radius: 8px;
-            font-size: 12px;
-            font-weight: 600;
+        .photo-upload-hint {
+            font-size: 11px;
             color: var(--accent);
-            cursor: pointer;
             margin-top: 6px;
-        }
-
-        .btn-upload-photo:active {
-            background: var(--accent);
-            color: var(--accent-text);
+            cursor: pointer;
         }
 
         .photo-upload-input {
@@ -1101,19 +1108,17 @@ function addModel() {
         <!-- Фото товара -->
         <div class="product-photo-block" id="${id}-photoBlock">
             <div class="product-thumb-placeholder" id="${id}-thumb" onclick="triggerPhotoUpload('${id}')">
-                &#128247;
+                <span class="thumb-icon">&#128247;</span>
+                <span class="thumb-hint">Нажмите для фото</span>
             </div>
+            <input type="file" accept="image/*"
+                   class="photo-upload-input" id="${id}-fileInput"
+                   onchange="handlePhotoUpload(this, '${id}')">
             <div class="product-photo-info">
                 <div class="photo-product-name" id="${id}-photoName">Выберите товар</div>
                 <div class="photo-product-id" id="${id}-photoId">—</div>
-                <label class="btn-upload-photo" for="${id}-fileInput">
-                    &#128247; Загрузить фото
-                </label>
-                <input type="file" accept="image/*"
-                       class="photo-upload-input" id="${id}-fileInput"
-                       onchange="handlePhotoUpload(this, '${id}')">
-                <div class="photo-preview-uploaded" id="${id}-uploadStatus" style="display:none;">
-                    &#10003; Фото загружено
+                <div class="photo-upload-hint" id="${id}-uploadHint" onclick="triggerPhotoUpload('${id}')">
+                    &#128247; Загрузить / сменить фото
                 </div>
             </div>
         </div>
@@ -1197,6 +1202,7 @@ function updatePhotoBlock(modelId, photoUrl, name, artId) {
     const thumb = document.getElementById(modelId + '-thumb');
     const nameEl = document.getElementById(modelId + '-photoName');
     const idEl = document.getElementById(modelId + '-photoId');
+    const hint = document.getElementById(modelId + '-uploadHint');
 
     if (nameEl) nameEl.textContent = name;
     if (idEl) idEl.textContent = artId || '';
@@ -1207,17 +1213,19 @@ function updatePhotoBlock(modelId, photoUrl, name, artId) {
         img.src = photoUrl;
         img.className = 'product-thumb';
         img.alt = name;
+        img.id = modelId + '-thumb';
+        img.title = 'Нажмите, чтобы загрузить своё фото';
+        img.onclick = function() { triggerPhotoUpload(modelId); };
         img.onerror = function() {
-            // Если фото не загрузилось — вернуть placeholder
             this.replaceWith(createThumbPlaceholder(modelId));
         };
         thumb.replaceWith(img);
-        // Сохраняем id для замены при загрузке
-        img.id = modelId + '-thumb';
+        if (hint) hint.textContent = '📷 Сменить фото';
     } else if (thumb && thumb.tagName === 'IMG') {
         // Вернуть placeholder
         const ph = createThumbPlaceholder(modelId);
         thumb.replaceWith(ph);
+        if (hint) hint.textContent = '📷 Загрузить / сменить фото';
     }
 }
 
@@ -1225,7 +1233,7 @@ function createThumbPlaceholder(modelId) {
     const div = document.createElement('div');
     div.className = 'product-thumb-placeholder';
     div.id = modelId + '-thumb';
-    div.innerHTML = '&#128247;';
+    div.innerHTML = '<span class="thumb-icon">📷</span><span class="thumb-hint">Нажмите для фото</span>';
     div.onclick = function() { triggerPhotoUpload(modelId); };
     return div;
 }
@@ -1246,22 +1254,21 @@ function handlePhotoUpload(input, modelId) {
     reader.onload = function(e) {
         const dataUrl = e.target.result;
 
-        // Показать превью
+        // Показать превью — заменяем placeholder или старое фото
         const thumb = document.getElementById(modelId + '-thumb');
         if (thumb) {
             const img = document.createElement('img');
             img.src = dataUrl;
             img.className = 'product-thumb';
             img.id = modelId + '-thumb';
+            img.title = 'Нажмите, чтобы сменить фото';
+            img.onclick = function() { triggerPhotoUpload(modelId); };
             thumb.replaceWith(img);
         }
 
-        // Статус
-        const status = document.getElementById(modelId + '-uploadStatus');
-        if (status) {
-            status.style.display = '';
-            status.textContent = '\u2713 ' + file.name;
-        }
+        // Обновить подсказку
+        const hint = document.getElementById(modelId + '-uploadHint');
+        if (hint) hint.textContent = '\u2713 Фото загружено · сменить';
 
         // Сохраняем для отправки (ужимаем до 200px для экономии)
         compressImage(dataUrl, 200, function(compressed) {
