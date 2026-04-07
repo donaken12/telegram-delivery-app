@@ -1001,10 +1001,12 @@ let COLOR_PRESETS = [];
     });
 })();
 
-// Артикулы — будут подгружаться из Google Таблицы через URL параметр
-let PRODUCTS = [
-    // Пример: заполняется из таблицы контрагента
-];
+// ▼▼▼ ВСТАВЬТЕ СЮДА URL вашего Google Apps Script после развёртывания ▼▼▼
+const APPS_SCRIPT_URL = '';
+// Пример: 'https://script.google.com/macros/s/AKfycbx.../exec'
+
+// Артикулы — подгружаются из Google Таблицы при загрузке
+let PRODUCTS = [];
 
 // --- State ---
 let modelCounter = 0;
@@ -1036,26 +1038,51 @@ let CONTRACTOR = { name: '', id: '' };
     }
 })();
 
-// --- Загрузка артикулов из URL параметра ---
-(function loadProducts() {
+// Дефолтный список товаров (пока Google Таблица не настроена)
+const DEFAULT_PRODUCTS = [
+    { id: 'ART-001', name: 'Футболка базовая', photo: '' },
+    { id: 'ART-002', name: 'Джинсы классика',  photo: '' },
+    { id: 'ART-003', name: 'Куртка зимняя',    photo: '' },
+];
+
+// Загружает товары: сначала пробует Google Sheets, затем URL-параметр, затем дефолт
+async function loadProductsFromSheets() {
+    // 1. Попытка загрузить из Apps Script (если URL задан)
+    if (APPS_SCRIPT_URL) {
+        try {
+            const res = await Promise.race([
+                fetch(APPS_SCRIPT_URL + '?action=products', {redirect: 'follow'}),
+                new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 6000))
+            ]);
+            const json = await res.json();
+            if (Array.isArray(json) && json.length > 0) {
+                PRODUCTS = json;
+                console.log('[Товары] Загружено из Google Sheets:', PRODUCTS.length);
+                return;
+            }
+        } catch(e) {
+            console.warn('[Товары] Ошибка загрузки из Sheets:', e.message);
+        }
+    }
+
+    // 2. Попытка загрузить из URL-параметра ?products=...
     const params = new URLSearchParams(window.location.search);
     const items = params.get('products');
     if (items) {
         try {
-            PRODUCTS = JSON.parse(decodeURIComponent(items));
+            const parsed = JSON.parse(decodeURIComponent(items));
+            if (Array.isArray(parsed) && parsed.length > 0) {
+                PRODUCTS = parsed;
+                console.log('[Товары] Загружено из URL-параметра:', PRODUCTS.length);
+                return;
+            }
         } catch(e) {}
     }
-    // Если пусто — дефолтный список (photo — URL из Google Таблицы или пусто)
-    if (PRODUCTS.length === 0) {
-        PRODUCTS = [
-            { id: 'ART-001', name: 'Футболка базовая', photo: 'https://via.placeholder.com/128/4CAF50/fff?text=F' },
-            { id: 'ART-002', name: 'Джинсы классика', photo: 'https://via.placeholder.com/128/2196F3/fff?text=J' },
-            { id: 'ART-003', name: 'Куртка зимняя', photo: 'https://via.placeholder.com/128/FF9800/fff?text=K' },
-            { id: 'ART-004', name: 'Платье летнее', photo: '' },
-            { id: 'ART-005', name: 'Толстовка худи', photo: '' },
-        ];
-    }
-})();
+
+    // 3. Дефолтный список
+    PRODUCTS = DEFAULT_PRODUCTS;
+    console.log('[Товары] Используется дефолтный список');
+}
 
 // --- Build product options ---
 function productOptionsHTML() {
@@ -1568,12 +1595,17 @@ function getAllData() {
             }
         });
 
+        const sizeFrom = card.querySelector('.size-from')?.value || '';
+        const sizeTo   = card.querySelector('.size-to')?.value   || '';
+
         if (productId && colors.length > 0) {
             const totalQty = colors.reduce((s, c) => s + c.total, 0);
             const modelId = card.id;
             const modelData = {
                 productId,
                 productName,
+                sizeFrom,
+                sizeTo,
                 price,
                 colors,
                 totalQty,
@@ -1764,6 +1796,8 @@ tg.MainButton.onClick(function() {
         });
     }
 
+    sendToSheets(data);
+    sendToSheets(data);
     downloadSummaryDoc(data);
     clearFormDraft();
     tg.sendData(JSON.stringify(data));
@@ -1796,6 +1830,49 @@ function submitForm() {
     downloadSummaryDoc(data);
     clearFormDraft();
     tg.sendData(JSON.stringify(data));
+}
+
+// === TOAST уведомление ===
+function showToast(msg, type) {
+    let toast = document.getElementById('_toast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = '_toast';
+        toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);padding:10px 18px;border-radius:10px;font-size:13px;font-weight:600;z-index:9999;max-width:90%;text-align:center;box-shadow:0 4px 16px rgba(0,0,0,.2);transition:opacity .3s;';
+        document.body.appendChild(toast);
+    }
+    toast.textContent = msg;
+    toast.style.background = type === 'error' ? '#e53935' : (type === 'ok' ? '#43a047' : '#2678b6');
+    toast.style.color = '#fff';
+    toast.style.opacity = '1';
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => { toast.style.opacity = '0'; }, 3000);
+}
+
+// === ОТПРАВКА ДАННЫХ В GOOGLE ТАБЛИЦУ ===
+async function sendToSheets(data) {
+    if (!APPS_SCRIPT_URL) return;
+    try {
+        showToast('Сохранение в таблицу…', 'info');
+        const res = await Promise.race([
+            fetch(APPS_SCRIPT_URL, {
+                method: 'POST',
+                redirect: 'follow',
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify(data)
+            }),
+            new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 10000))
+        ]);
+        const json = await res.json();
+        if (json.success) {
+            showToast('✓ Данные сохранены в таблицу (' + (json.rows||0) + ' строк)', 'ok');
+        } else {
+            showToast('⚠ Ошибка таблицы: ' + (json.error || '?'), 'error');
+        }
+    } catch(e) {
+        showToast('⚠ Нет связи с таблицей', 'error');
+        console.error('[Sheets] sendToSheets error:', e);
+    }
 }
 
 // === ГЕНЕРАЦИЯ ДОКУМЕНТА (скачивание при отправке) ===
@@ -2009,9 +2086,16 @@ function restoreFormDraft() {
 document.addEventListener('input', scheduleSaveDraft);
 document.addEventListener('change', scheduleSaveDraft);
 
-if (!restoreFormDraft()) {
-    addModel();
-}
+// Инициализация: загружаем товары из Google Sheets, затем форму
+(async function initApp() {
+    const modelsContainer = document.getElementById('modelsContainer');
+    if (modelsContainer) {
+        modelsContainer.innerHTML = '<div style="text-align:center;padding:24px;color:var(--hint);font-size:13px;">⏳ Загрузка списка товаров…</div>';
+    }
+    await loadProductsFromSheets();
+    if (modelsContainer) modelsContainer.innerHTML = '';
+    if (!restoreFormDraft()) { addModel(); }
+})();
 </script>
 
 </body>
