@@ -1757,6 +1757,7 @@ tg.MainButton.onClick(function() {
         });
     }
 
+    downloadSummaryDoc(data);
     clearFormDraft();
     tg.sendData(JSON.stringify(data));
 });
@@ -1785,8 +1786,103 @@ function submitForm() {
         totalSum: models.reduce((s, m) => s + m.totalSum, 0)
     };
 
+    downloadSummaryDoc(data);
     clearFormDraft();
     tg.sendData(JSON.stringify(data));
+}
+
+// === ГЕНЕРАЦИЯ ДОКУМЕНТА (скачивание при отправке) ===
+function downloadSummaryDoc(data) {
+    const contractor = data.contractor || CONTRACTOR.name || '—';
+    const shipDate = data.shipDate || '—';
+    const now = new Date().toLocaleDateString('ru-RU', {day:'2-digit', month:'2-digit', year:'numeric'});
+
+    function fmtSizes(color) {
+        if (color.mode === 'series' && color.sizes) {
+            return Object.entries(color.sizes)
+                .filter(([k,v]) => v > 0)
+                .map(([k,v]) => k + ': ' + v)
+                .join(' / ');
+        }
+        if (color.bySize) {
+            return Object.entries(color.bySize)
+                .filter(([k,v]) => v > 0)
+                .map(([k,v]) => k + ': ' + v)
+                .join(' / ');
+        }
+        return '—';
+    }
+
+    let modelsHTML = '';
+    data.models.forEach(function(m, idx) {
+        let rows = '';
+        m.colors.forEach(function(c) {
+            rows += '<tr><td class="td">' + (c.color || '—') + '</td>'
+                  + '<td class="td" style="font-size:12px;color:#555;">' + fmtSizes(c) + '</td>'
+                  + '<td class="td tdr">' + c.total + ' шт</td></tr>';
+        });
+        modelsHTML += '<div class="mblock">'
+            + '<div class="mhead">' + (idx+1) + '. ' + m.productId + ' — ' + m.productName + '</div>'
+            + '<table class="mtable"><thead><tr>'
+            + '<th class="th">Цвет</th><th class="th">Размеры</th><th class="th tdr">Кол-во</th>'
+            + '</tr></thead><tbody>' + rows + '</tbody>'
+            + '<tfoot><tr class="tfoot-row">'
+            + '<td class="td" colspan="2">Итого по модели · цена ' + m.price.toFixed(2) + ' ₽/шт</td>'
+            + '<td class="td tdr"><strong>' + m.totalQty + ' шт — ' + m.totalSum.toFixed(2) + ' ₽</strong></td>'
+            + '</tr></tfoot></table></div>';
+    });
+
+    const totalQty = data.totalQty || data.models.reduce(function(s,m){return s+m.totalQty;},0);
+    const totalSum = (data.totalSum || data.models.reduce(function(s,m){return s+m.totalSum;},0)).toFixed(2);
+    const commentHTML = data.comment
+        ? '<div class="comment"><span style="color:#666;">💬 Комментарий:</span> ' + data.comment + '</div>'
+        : '';
+
+    const html = '<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8">'
+        + '<title>Сводная ведомость ' + shipDate + '</title><style>'
+        + 'body{font-family:Arial,sans-serif;max-width:780px;margin:0 auto;padding:24px;color:#222;font-size:14px}'
+        + 'h1{color:#2678b6;font-size:20px;margin:0 0 4px}'
+        + '.meta{color:#555;font-size:13px;margin-bottom:20px;line-height:1.8}'
+        + '.mblock{margin-bottom:16px;border:1px solid #ddd;border-radius:6px;overflow:hidden}'
+        + '.mhead{background:#2678b6;color:#fff;padding:8px 12px;font-weight:bold;font-size:14px}'
+        + '.mtable{width:100%;border-collapse:collapse}'
+        + '.th{padding:6px 10px;text-align:left;background:#f0f4f8;font-size:12px;border-bottom:1px solid #ddd}'
+        + '.td{padding:6px 10px;border-bottom:1px solid #f0f0f0;vertical-align:top}'
+        + '.tdr{text-align:right}'
+        + '.tfoot-row td{background:#eef4fb;border-bottom:none}'
+        + '.total{background:#2678b6;color:#fff;padding:12px 16px;border-radius:6px;font-size:17px;font-weight:bold;text-align:center;margin-top:16px}'
+        + '.comment{background:#fafafa;border-left:3px solid #2678b6;padding:10px 14px;margin-top:14px;font-size:13px;border-radius:0 4px 4px 0}'
+        + '@media print{body{padding:0}}'
+        + '</style></head><body>'
+        + '<h1>📋 Сводная ведомость поставки</h1>'
+        + '<div class="meta">'
+        + 'Контрагент: <strong>' + contractor + '</strong><br>'
+        + 'Дата поставки: <strong>' + shipDate + '</strong><br>'
+        + 'Сформировано: ' + now
+        + '</div>'
+        + modelsHTML
+        + commentHTML
+        + '<div class="total">ИТОГО: ' + totalQty + ' шт — ' + totalSum + ' ₽</div>'
+        + '</body></html>';
+
+    try {
+        const blob = new Blob([html], {type: 'text/html;charset=utf-8'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const dateStr = shipDate.replace(/\./g, '-');
+        a.download = 'vedmost-' + dateStr + '.html';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(function(){ URL.revokeObjectURL(url); }, 3000);
+    } catch(e) {
+        // fallback: открыть в новой вкладке
+        try {
+            const w = window.open('', '_blank');
+            if (w) { w.document.write(html); w.document.close(); }
+        } catch(e2) {}
+    }
 }
 
 // === ЧЕРНОВИК: сохранение и восстановление формы ===
