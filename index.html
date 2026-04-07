@@ -1664,10 +1664,14 @@ function getAllData() {
                 totalQty,
                 totalSum: totalQty * price
             };
-            // Если есть загруженное фото — пометим (base64 не шлём через sendData, слишком большой)
-            if (uploadedPhotos[modelId]) {
-                modelData.hasUploadedPhoto = true;
+            // Фото для документа (загруженное или из каталога)
+            var photoForDoc = uploadedPhotos[modelId] || '';
+            if (!photoForDoc) {
+                var thumbImgEl = card.querySelector('.product-thumb');
+                if (thumbImgEl && thumbImgEl.tagName === 'IMG') { photoForDoc = thumbImgEl.src || ''; }
             }
+            modelData.photo = photoForDoc;
+            if (uploadedPhotos[modelId]) { modelData.hasUploadedPhoto = true; }
             models.push(modelData);
         }
     });
@@ -1850,10 +1854,16 @@ tg.MainButton.onClick(function() {
     }
 
     sendToSheets(data);
-    sendToSheets(data);
-    downloadSummaryDoc(data);
-    clearFormDraft();
-    tg.sendData(JSON.stringify(data));
+    if (isTelegram) {
+        // В Telegram — показываем превью, отправка через кнопку в модалке
+        var html = buildDocHTML(data);
+        showDocModal(html, data);
+    } else {
+        // В браузере — скачиваем сразу
+        sendToSheets(data);
+        downloadSummaryDoc(data);
+        clearFormDraft();
+    }
 });
 
 // Скрываем HTML-кнопку если в Telegram (там MainButton)
@@ -1880,9 +1890,14 @@ function submitForm() {
         totalSum: models.reduce((s, m) => s + m.totalSum, 0)
     };
 
-    downloadSummaryDoc(data);
-    clearFormDraft();
-    tg.sendData(JSON.stringify(data));
+    if (isTelegram) {
+        var html = buildDocHTML(data);
+        showDocModal(html, data);
+    } else {
+        sendToSheets(data);
+        downloadSummaryDoc(data);
+        clearFormDraft();
+    }
 }
 
 // === TOAST уведомление ===
@@ -1952,8 +1967,9 @@ function buildDocHTML(data) {
                   + '<td class="td" style="font-size:11px;color:#555;">' + fmtSizes(c) + '</td>'
                   + '<td class="td tdr">' + c.total + ' шт</td></tr>';
         });
+        var photoTag = m.photo ? '<img src="' + m.photo + '" style="max-height:52px;max-width:52px;object-fit:cover;border-radius:5px;margin-left:8px;flex-shrink:0;vertical-align:middle;" />' : '';
         modelsHTML += '<div class="mblock">'
-            + '<div class="mhead">' + (idx+1) + '. ' + m.productId + ' — ' + m.productName + '</div>'
+            + '<div class="mhead" style="display:flex;align-items:center;justify-content:space-between;"><span>' + (idx+1) + '. ' + m.productId + ' — ' + m.productName + '</span>' + photoTag + '</div>'
             + '<table class="mtable"><thead><tr>'
             + '<th class="th">Цвет</th><th class="th">Размеры</th><th class="th tdr">Кол-во</th>'
             + '</tr></thead><tbody>' + rows + '</tbody>'
@@ -2023,36 +2039,74 @@ function downloadSummaryDoc(data) {
     }
 }
 
-function showDocModal(html) {
-    let modal = document.getElementById('_docModal');
-    if (modal) modal.remove();
-    modal = document.createElement('div');
+function showDocModal(html, confirmData) {
+    var existing = document.getElementById('_docModal');
+    if (existing) existing.remove();
+
+    var modal = document.createElement('div');
     modal.id = '_docModal';
     modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:10000;background:#fff;display:flex;flex-direction:column;overflow:hidden;';
-    const header = document.createElement('div');
-    header.style.cssText = 'background:#2678b6;color:#fff;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;';
-    const title = document.createElement('span');
+
+    // Шапка
+    var header = document.createElement('div');
+    header.style.cssText = 'background:#2678b6;color:#fff;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;';
+
+    var title = document.createElement('span');
     title.textContent = '📋 Ведомость поставки';
     title.style.cssText = 'font-weight:700;font-size:15px;';
-    const closeBtn = document.createElement('button');
-    closeBtn.textContent = '✕ Закрыть';
-    closeBtn.style.cssText = 'background:rgba(255,255,255,.2);border:none;color:#fff;font-size:15px;font-weight:700;border-radius:8px;padding:6px 14px;cursor:pointer;';
+
+    var closeBtn = document.createElement('button');
+    closeBtn.textContent = '✕';
+    closeBtn.style.cssText = 'background:rgba(255,255,255,.2);border:none;color:#fff;font-size:18px;font-weight:700;border-radius:6px;padding:4px 10px;cursor:pointer;';
     closeBtn.addEventListener('click', function() {
         var m = document.getElementById('_docModal');
         if (m) m.remove();
     });
+
     header.appendChild(title);
     header.appendChild(closeBtn);
-    const iframe = document.createElement('iframe');
+
+    // iframe с документом
+    var iframe = document.createElement('iframe');
     iframe.style.cssText = 'flex:1;border:none;width:100%;';
     iframe.srcdoc = html;
+
+    // Футер с кнопками
+    var footer = document.createElement('div');
+    footer.style.cssText = 'display:flex;gap:8px;padding:10px 14px;background:#f5f7fa;border-top:1px solid #ddd;flex-shrink:0;';
+
+    var printBtn = document.createElement('button');
+    printBtn.textContent = '🖨 Сохранить PDF';
+    printBtn.style.cssText = 'flex:1;padding:10px;border:1px solid #2678b6;background:#fff;color:#2678b6;font-size:14px;font-weight:600;border-radius:8px;cursor:pointer;';
+    printBtn.addEventListener('click', function() {
+        try { iframe.contentWindow.print(); } catch(e) { window.print(); }
+    });
+
+    footer.appendChild(printBtn);
+
+    if (confirmData) {
+        var sendBtn = document.createElement('button');
+        sendBtn.textContent = '✅ Отправить';
+        sendBtn.style.cssText = 'flex:1;padding:10px;border:none;background:#2678b6;color:#fff;font-size:14px;font-weight:700;border-radius:8px;cursor:pointer;';
+        sendBtn.addEventListener('click', function() {
+            sendBtn.disabled = true;
+            sendBtn.textContent = '… Отправка';
+            sendToSheets(confirmData);
+            clearFormDraft();
+            try { tg.sendData(JSON.stringify(confirmData)); } catch(e) {}
+            var m = document.getElementById('_docModal');
+            if (m) m.remove();
+            showToast('✓ Данные отправлены!', 'ok');
+        });
+        footer.appendChild(sendBtn);
+    }
+
     modal.appendChild(header);
     modal.appendChild(iframe);
+    modal.appendChild(footer);
     document.body.appendChild(modal);
 }
 
-// === ЧЕРНОВИК: сохранение и восстановление формы ===
-const DRAFT_KEY = 'deliveryFormDraft';
 
 function saveFormDraft() {
     const draft = {
