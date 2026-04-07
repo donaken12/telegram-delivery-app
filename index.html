@@ -1016,10 +1016,16 @@ let CONTRACTOR = { name: '', id: '' };
         CONTRACTOR.id = cid ? decodeURIComponent(cid) : '';
         document.getElementById('contractorName').textContent = CONTRACTOR.name;
         document.getElementById('contractorId').textContent = CONTRACTOR.id ? ('ID: ' + CONTRACTOR.id) : '';
+    } else if (isTelegram && tg.initDataUnsafe && tg.initDataUnsafe.user) {
+        const user = tg.initDataUnsafe.user;
+        const displayName = [user.first_name, user.last_name].filter(Boolean).join(' ') || user.username || '—';
+        CONTRACTOR.name = displayName;
+        CONTRACTOR.id = user.username ? user.username : String(user.id || '');
+        document.getElementById('contractorName').textContent = displayName;
+        document.getElementById('contractorId').textContent = user.username ? '@' + user.username : '';
     } else {
-        // Если нет параметра — показываем дефолт для превью
-        document.getElementById('contractorName').textContent = 'ООО «Текстиль Восток»';
-        document.getElementById('contractorId').textContent = 'ID: CTR-007 (превью)';
+        document.getElementById('contractorName').textContent = '—';
+        document.getElementById('contractorId').textContent = '';
     }
 })();
 
@@ -1103,7 +1109,7 @@ function addModel() {
                 <label class="btn-upload-photo" for="${id}-fileInput">
                     &#128247; Загрузить фото
                 </label>
-                <input type="file" accept="image/*" capture="environment"
+                <input type="file" accept="image/*"
                        class="photo-upload-input" id="${id}-fileInput"
                        onchange="handlePhotoUpload(this, '${id}')">
                 <div class="photo-preview-uploaded" id="${id}-uploadStatus" style="display:none;">
@@ -1751,6 +1757,7 @@ tg.MainButton.onClick(function() {
         });
     }
 
+    clearFormDraft();
     tg.sendData(JSON.stringify(data));
 });
 
@@ -1778,11 +1785,130 @@ function submitForm() {
         totalSum: models.reduce((s, m) => s + m.totalSum, 0)
     };
 
+    clearFormDraft();
     tg.sendData(JSON.stringify(data));
 }
 
-// Добавляем первую модель
-addModel();
+// === ЧЕРНОВИК: сохранение и восстановление формы ===
+const DRAFT_KEY = 'deliveryFormDraft';
+
+function saveFormDraft() {
+    const draft = {
+        shipDate: document.getElementById('shipDate').value,
+        comment: document.getElementById('comment').value,
+        models: []
+    };
+    document.querySelectorAll('.model-card').forEach(card => {
+        const id = card.id;
+        const sel = card.querySelector('select');
+        const productValue = sel ? sel.value : '';
+        const customName = card.querySelector('.custom-name-input')?.value || '';
+        const price = card.querySelector('.model-price')?.value || '';
+        const sizeFrom = card.querySelector('.size-from')?.value || '46';
+        const sizeTo = card.querySelector('.size-to')?.value || '64';
+        const lineupCount = card.querySelector('.model-lineup-count')?.value || '0';
+        const lineupPer = card.querySelector('.model-lineup-per')?.value || '0';
+        const colors = [];
+        card.querySelectorAll('.color-block').forEach(cb => {
+            const ci = cb.querySelector('.color-combo-input');
+            const colorName = ci ? ci.value : '';
+            const sizes = {};
+            cb.querySelectorAll('.size-cell input[data-size]').forEach(inp => {
+                sizes[inp.dataset.size] = inp.value || '';
+            });
+            colors.push({ name: colorName, sizes });
+        });
+        draft.models.push({ productValue, customName, price, sizeFrom, sizeTo, lineupCount, lineupPer, colors });
+    });
+    try { localStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); } catch(e) {}
+}
+
+let _draftTimer = null;
+function scheduleSaveDraft() {
+    clearTimeout(_draftTimer);
+    _draftTimer = setTimeout(saveFormDraft, 800);
+}
+
+function clearFormDraft() {
+    try { localStorage.removeItem(DRAFT_KEY); } catch(e) {}
+}
+
+function restoreFormDraft() {
+    let draft;
+    try {
+        const raw = localStorage.getItem(DRAFT_KEY);
+        if (!raw) return false;
+        draft = JSON.parse(raw);
+    } catch(e) { return false; }
+    if (!draft || !draft.models || draft.models.length === 0) return false;
+
+    if (draft.shipDate) document.getElementById('shipDate').value = draft.shipDate;
+    if (draft.comment) document.getElementById('comment').value = draft.comment;
+
+    document.getElementById('modelsContainer').innerHTML = '';
+    modelCounter = 0;
+
+    draft.models.forEach(function(m) {
+        addModel();
+        const cards = document.querySelectorAll('.model-card');
+        const card = cards[cards.length - 1];
+        const id = card.id;
+
+        const sel = card.querySelector('select');
+        if (sel && m.productValue) {
+            sel.value = m.productValue;
+            onProductChange(sel, id);
+        }
+        if (m.productValue === '__custom__' && m.customName) {
+            const ci = card.querySelector('.custom-name-input');
+            if (ci) ci.value = m.customName;
+        }
+
+        const priceEl = card.querySelector('.model-price');
+        if (priceEl && m.price) priceEl.value = m.price;
+
+        const sfEl = card.querySelector('.size-from');
+        const stEl = card.querySelector('.size-to');
+        if (sfEl && m.sizeFrom) sfEl.value = m.sizeFrom;
+        if (stEl && m.sizeTo) stEl.value = m.sizeTo;
+        onSizeRangeChange(id);
+
+        const lcEl = card.querySelector('.model-lineup-count');
+        const lpEl = card.querySelector('.model-lineup-per');
+        if (lcEl && m.lineupCount) lcEl.value = m.lineupCount;
+        if (lpEl && m.lineupPer) lpEl.value = m.lineupPer;
+        if (parseInt(m.lineupCount) > 0 || parseInt(m.lineupPer) > 0) applyModelLineup(id);
+
+        const colorContainer = document.getElementById(id + '-colors');
+        if (colorContainer) colorContainer.innerHTML = '';
+
+        (m.colors || []).forEach(function(c) {
+            addColor(id);
+            const cbs = card.querySelectorAll('.color-block');
+            const cb = cbs[cbs.length - 1];
+            const ci = cb.querySelector('.color-combo-input');
+            if (ci && c.name) ci.value = c.name;
+            if (c.sizes) {
+                cb.querySelectorAll('.size-cell input[data-size]').forEach(function(inp) {
+                    if (c.sizes[inp.dataset.size] !== undefined && c.sizes[inp.dataset.size] !== '') {
+                        inp.value = c.sizes[inp.dataset.size];
+                    }
+                });
+                updateColorTotal(cb.id);
+            }
+        });
+    });
+
+    recalcAll();
+    return true;
+}
+
+document.addEventListener('input', scheduleSaveDraft);
+document.addEventListener('change', scheduleSaveDraft);
+
+if (!restoreFormDraft()) {
+    addModel();
+}
 </script>
 
 </body>
