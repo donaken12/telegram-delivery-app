@@ -380,6 +380,30 @@
             font-weight: 700;
         }
 
+        .color-lineup-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 8px;
+            padding: 4px 0;
+        }
+        .color-lineup-label {
+            font-size: 12px;
+            color: var(--hint);
+            flex-shrink: 0;
+        }
+        .color-lineup-input {
+            width: 60px;
+            padding: 4px 6px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            text-align: center;
+            background: var(--bg);
+            color: var(--text);
+        }
+
         /* === ADD BUTTONS === */
         .btn-add {
             display: flex;
@@ -1352,6 +1376,15 @@ function addColor(modelId) {
             <button class="btn-remove-sm" onclick="removeColor('${colorId}')">&#10005;</button>
         </div>
 
+        <!-- Линейки по цвету -->
+        <div class="color-lineup-row">
+            <span class="color-lineup-label">Линеек:</span>
+            <input type="number" inputmode="numeric" class="color-lineup-input"
+                   id="${colorId}-lineup" placeholder="—" min="0"
+                   oninput="applyColorLineup('${colorId}')">
+            <span class="color-lineup-label" style="margin-left:2px;">шт/разм</span>
+        </div>
+
         <!-- Размерная сетка (всегда видна) -->
         <div class="size-grid">
             ${SIZES.map(s => `
@@ -1456,6 +1489,26 @@ function clearColorInput(colorId) {
 
 // === SIZE INPUT & LINEUP ===
 function onSizeInput(colorId) {
+    updateColorTotal(colorId);
+    recalcAll();
+}
+
+function applyColorLineup(colorId) {
+    const block = document.getElementById(colorId);
+    if (!block) return;
+    const lineupInput = document.getElementById(colorId + '-lineup');
+    const val = parseInt(lineupInput ? lineupInput.value : 0) || 0;
+    if (val <= 0) {
+        updateColorTotal(colorId);
+        recalcAll();
+        return;
+    }
+    block.querySelectorAll('.size-cell').forEach(function(cell) {
+        if (!cell.classList.contains('size-disabled')) {
+            const inp = cell.querySelector('input[data-size]');
+            if (inp) inp.value = val;
+        }
+    });
     updateColorTotal(colorId);
     recalcAll();
 }
